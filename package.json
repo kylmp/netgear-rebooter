@@ -1,0 +1,17 @@
+{
+  "name": "netgear-rebooter",
+  "version": "1.0.0",
+  "main": "netgear-rebooter.js",
+  "scripts": {
+    "start": "node netgear-rebooter.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "request": "^2.88.2"
+  }
+}
