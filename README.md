@@ -1,4 +1,4 @@
-Netgear Bebooter
+Netgear Rebooter
 
 Purpose: 
 
