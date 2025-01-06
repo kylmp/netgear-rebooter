@@ -129,13 +129,14 @@ function restartRouter() {
   if (rebootAttempts > allowedRestartAttempts) {
     log('Too many consecutive restarts - Shutting down', 'WARN');
     updateStatus(statuses.STOPPED);
+  } else {
+    log('Restarting router', 'WARN');
+    updateStatus(statuses.REBOOTING);
+    rebootTimestamp = getTimestamp();
+    const rebootCmd = `id=$(wget -q -O- --http-user ${process.env.NETGEAR_USER} --http-password ${process.env.NETGEAR_PASS} http://${process.env.NETGEAR_IP}/ADVANCED_home2.htm | perl -lne '/id=([a-f0-9]+)/ && print $1'); wget -O- --http-user ${process.env.NETGEAR_USER} --http-password ${process.env.NETGEAR_PASS} http://${process.env.NETGEAR_IP}/newgui_adv_home.cgi?id=$id --post-data "id=$id&buttonType=2";`;
+    execAsync(rebootCmd);
+    setTimeout(() => updateStatus(statuses.RUNNING), 150000); // Allow 2.5 minutes for router reboot
   }
-  log('Restarting router', 'WARN');
-  updateStatus(statuses.REBOOTING);
-  rebootTimestamp = getTimestamp();
-  const rebootCmd = `id=$(wget -q -O- --http-user ${process.env.NETGEAR_USER} --http-password ${process.env.NETGEAR_PASS} http://${process.env.NETGEAR_IP}/ADVANCED_home2.htm | perl -lne '/id=([a-f0-9]+)/ && print $1'); wget -O- --http-user ${process.env.NETGEAR_USER} --http-password ${process.env.NETGEAR_PASS} http://${process.env.NETGEAR_IP}/newgui_adv_home.cgi?id=$id --post-data "id=$id&buttonType=2";`;
-  execAsync(rebootCmd);
-  setTimeout(() => updateStatus(statuses.RUNNING), 150000); // Allow 2.5 minutes for router reboot
 }
 
 function updateState(newState) {
