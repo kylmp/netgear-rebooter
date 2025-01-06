@@ -15,7 +15,7 @@ const serverUrl = process.env.SERVER_URL || `http://${process.env.SERVER_LOCAL_I
 const logFile = `${process.env.LOG_DIR || ''}netgear-rebooter.log`;
 const start = getTimestamp();
 
-const statuses = {RUNNING: 'RUNNING', STOPPED: 'STOPPED', REBOOTING: 'REBOOTING'};
+const statuses = {RUNNING: 'RUNNING', STOPPED: 'STOPPED', REBOOTING: 'REBOOTING', PAUSED: 'PAUSED'};
 const runState = {
   SKIPPED: {id: 'skip', val: 'Skipped due to non-running status'}, 
   UNAUTHENTICATED: {id: 'unauth', val: 'Unauthenticated (logging into router)'}, 
@@ -31,6 +31,7 @@ let lastRunState = runState.SKIPPED;
 let lastRunAttemptTimestamp;
 let loginTimestamp = '-';
 let rebootTimestamp = '-';
+let pauseTimestamp;
 
 let loginAttempts = 0;
 let totalLoginAttempts = 0;
@@ -41,9 +42,10 @@ let totalRebootCount = 0;
 let statecounts = {};
 
 server.get('/', (req, res) => {
+  let statusInfo = status === statuses.PAUSED ? `(Until ${pauseTimestamp})` : `(Since ${statusUpdateTime})`;
   res.set('Content-Type', 'text/html');
   res.send(
-    `Netgear Rebooter Status: <b>${status}</b> (Since ${statusUpdateTime})<br/><br/>` +
+    `Netgear Rebooter Status: <b>${status}</b> ${statusInfo}<br/><br/>` +
     `Last IP found: <b>${lastIp}</b> [ ${lastIpTimestamp} ]<br/>` + 
     `Last run state: <b>${lastRunState.val}</b> [ ${lastRunAttemptTimestamp} ]<br/>` + 
     `Last router login: <b>${loginTimestamp}</b><br/>` +
@@ -53,22 +55,41 @@ server.get('/', (req, res) => {
     `Total reboot count: <b>${totalRebootCount}</b> (${totalRebootAttempts} attempts)<br/><br/>` +
     `Current restart attempts: ${rebootAttempts} (Limit: ${allowedRestartAttempts})<br/>` +
     `Current login attempts: ${loginAttempts} (Limit: ${allowedLoginAttemps})<br/><br/>` +
-    `<button type="submit" onclick="location.href='${serverUrl}/restart'">Restart</button><br/><br/>` +
-    `Server started at ${start}`
+    `<button type="submit" onclick="location.href='${serverUrl}/restart'">Restart / Unpause</button><br/><br/>` + 
+    `<button type="submit" onclick="location.href='${serverUrl}/refresh'">Refresh Page</button><br/><br/>` + 
+    `<button type="submit" onclick="location.href='${serverUrl}/pause'">10 Minute Pause</button><br/><br/>` +
+    `<button type="submit" onclick="location.href='${serverUrl}/stop'">Stop Checks</button><br/><br/>` +
+    `Server started at ${start}<br/>Page updated at ${getTimestamp()}`
   );
 });
 
+server.get('/refresh', (req, res) => {
+  res.redirect('/');
+});
+
+server.get('/stop', (req, res) => {
+  updateStatus(statuses.STOPPED);
+  res.redirect('/');
+})
+
+server.get('/pause', (req, res) => {
+  updateStatus(statuses.PAUSED);
+  pauseTimestamp = getTimestamp(10);
+  setTimeout(() => updateStatus(statuses.RUNNING), 600000); // Pause for 10 minutes
+  res.redirect('/');
+});
+
 server.get('/restart', (req, res) => {
-  let responseText;
-  if (status === statuses.STOPPED) {
-    responseText = `Restarted! Status updated [${status} -> ${statuses.RUNNING}]`;
+  if (status === statuses.STOPPED || status === statuses.PAUSED) {
     updateStatus(statuses.RUNNING);
     rebootAttempts = 0;
     loginAttempts = 0;
+    pauseTimestamp = '-';
+    res.redirect('/');
   } else {
-    responseText = `Did not restart, status [${statuses.RUNNING}] does not allow restarting, try again later`;
+    const responseText = `Did not restart, status [${status}] does not allow restarting, try again later`;
+    res.send(`${responseText}<br/><br/><button type="submit" onclick="location.href='${serverUrl}'">Home</button>`);
   }
-  res.send(`${responseText}<br/><br/><button type="submit" onclick="location.href='${serverUrl}'">Home</button>`);
 });
 
 server.listen(port, () => {
@@ -91,13 +112,18 @@ const checkExternalIP = () => {
         execSync(`wget -qO- ${endpoint} &> /dev/null`); // hack to get the netgear auth token (wget handles auth for server)
         setTimeout(checkExternalIP, 1000);
       } else {
+        const match = body.match(/\b\d+\.\d+\.\d+\.\d+\b/g);
+        if (!match) {
+          setTimeout(checkExternalIP, checkInterval);
+          return;
+        }
+        const ip = match[1];
         if (lastRunState === runState.UNAUTHENTICATED) {
           log('Login successful');
           loginTimestamp = getTimestamp();
           loginAttempts = 0;
           totalLoginCount++;
         }
-        const ip = body.match(/\b\d+\.\d+\.\d+\.\d+\b/g)[1];
         lastIp = ip;
         lastIpTimestamp = getTimestamp();
         if (ip.startsWith('192')) {
@@ -157,8 +183,9 @@ function log(message, level='INFO') {
   }
 }
 
-function getTimestamp() {
-  const date = new Date();
+function getTimestamp(offsetMinutes = 0) {
+  let date = new Date();
+  date.setMinutes(date.getMinutes() + offsetMinutes); 
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
