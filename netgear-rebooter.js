@@ -12,7 +12,8 @@ const checkInterval = parseInt(process.env.RUN_INTERVAL);
 const allowedLoginAttemps = parseInt(process.env.ALLOWED_LOGIN_ATTEMPTS);
 const allowedRestartAttempts = parseInt(process.env.ALLOWED_RESTART_ATTEMPTS);
 const ignoredLogLevels = (process.env.IGNORED_LOG_LEVELS || '').toUpperCase().split(',');
-const serverUrl = process.env.SERVER_URL || `http://${process.env.SERVER_LOCAL_IP}:${port}`;
+const baseUrl = process.env.BASE_URL || '';
+const serverUrl = (process.env.SERVER_URL || `http://${process.env.SERVER_LOCAL_IP}:${port}`) + baseUrl;
 const logFile = `${process.env.LOG_DIR || ''}netgear-rebooter.log`;
 const start = getTimestamp();
 
@@ -45,7 +46,7 @@ let statecounts = {};
 const cssDark = `body { font-family: arial, sans-serif; color: #cccccc; background-color: #111111 }button {  background-color: #333333;  border: 1px solid transparent;  border-radius: .65rem;  box-sizing: border-box;  color: #FFFFFF;  cursor: pointer;  flex: 0 0 auto;  font-family: arial, sans-serif;  font-size: .9rem;  font-weight: 250;  line-height: 1rem;  padding: .5rem .8rem;  text-align: center;  text-decoration: none #6B7280 solid;  text-decoration-thickness: auto;  transition-duration: .2s;  transition-property: background-color,border-color,color,fill,stroke;  transition-timing-function: cubic-bezier(.4, 0, 0.2, 1);  user-select: none;  -webkit-user-select: none;  touch-action: manipulation;  width: auto;}button:hover {  background-color: #374151;}button:focus {  box-shadow: none;  outline: 2px solid transparent;  outline-offset: 2px;}@media (min-width: 768px) {  button {    padding: .5rem 1rem;  }}`;
 const cssLight = `body { font-family: arial, sans-serif; }button {  background-color: #dddddd;  border: 1px solid transparent;  border-radius: .65rem;  box-sizing: border-box;  color: #222222;  cursor: pointer;  flex: 0 0 auto;  font-family: arial, sans-serif;  font-size: .9rem;  font-weight: 250;  line-height: 1rem;  padding: .5rem .8rem;  text-align: center;  text-decoration: none #6B7280 solid;  text-decoration-thickness: auto;  transition-duration: .2s;  transition-property: background-color,border-color,color,fill,stroke;  transition-timing-function: cubic-bezier(.4, 0, 0.2, 1);  user-select: none;  -webkit-user-select: none;  touch-action: manipulation;  width: auto;}button:hover {  background-color: #cccccc;}button:focus {  box-shadow: none;  outline: 2px solid transparent;  outline-offset: 2px;}@media (min-width: 768px) {  button {    padding: .5rem 1rem;  }}`;
 
-server.get('/', (req, res) => {
+server.get(`${baseUrl}/`, (req, res) => {
   let statusInfo = status === statuses.PAUSED ? `(Until ${pauseTimestamp})` : `(Since ${statusUpdateTime})`;
   res.set('Content-Type', 'text/html');
   res.send(`
@@ -68,19 +69,19 @@ server.get('/', (req, res) => {
   `);
 });
 
-server.get('/stop', (req, res) => {
+server.get(`${baseUrl}/stop`, (req, res) => {
   updateStatus(statuses.STOPPED);
   res.redirect('/');
 })
 
-server.get('/pause', (req, res) => {
+server.get(`${baseUrl}/pause`, (req, res) => {
   updateStatus(statuses.PAUSED);
   pauseTimestamp = getTimestamp(10);
   setTimeout(() => updateStatus(statuses.RUNNING), 600000); // Pause for 10 minutes
   res.redirect('/');
 });
 
-server.get('/restart', (req, res) => {
+server.get(`${baseUrl}/restart`, (req, res) => {
   if (status === statuses.STOPPED || status === statuses.PAUSED) {
     updateStatus(statuses.RUNNING);
     rebootAttempts = 0;
