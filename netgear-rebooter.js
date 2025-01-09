@@ -7,6 +7,7 @@ const express = require('express');
 
 const server = express();
 const port = parseInt(process.env.PORT || 3000);
+const lightTheme = (process.env.THEME || 'light') === 'light';
 const checkInterval = parseInt(process.env.RUN_INTERVAL);
 const allowedLoginAttemps = parseInt(process.env.ALLOWED_LOGIN_ATTEMPTS);
 const allowedRestartAttempts = parseInt(process.env.ALLOWED_RESTART_ATTEMPTS);
@@ -41,26 +42,29 @@ let totalRebootAttempts = 0;
 let totalRebootCount = 0;
 let statecounts = {};
 
+const cssDark = `body { font-family: arial, sans-serif; color: #cccccc; background-color: #111111 }button { color: #dddddd; background-color: #333333; }`;
+const cssLight = `body { font-family: arial, sans-serif; }`;
+
 server.get('/', (req, res) => {
   let statusInfo = status === statuses.PAUSED ? `(Until ${pauseTimestamp})` : `(Since ${statusUpdateTime})`;
   res.set('Content-Type', 'text/html');
-  res.send(
-    `Netgear Rebooter Status: <b>${status}</b> ${statusInfo}<br/><br/>` +
-    `Last IP found: <b>${lastIp}</b> [ ${lastIpTimestamp} ]<br/>` + 
-    `Last run state: <b>${lastRunState.val}</b> [ ${lastRunAttemptTimestamp} ]<br/>` + 
-    `Last router login: <b>${loginTimestamp}</b><br/>` +
-    `Last router reboot: <b>${rebootTimestamp}</b><br/><br/>` +
-    `Total run count: <b>${statecounts.total}</b> (external: ${statecounts[runState.FOUND_EXTERNAL.id]}, internal: ${statecounts[runState.FOUND_INTERNAL.id]}, unauthenticated: ${statecounts[runState.UNAUTHENTICATED.id]}, skipped: ${statecounts[runState.SKIPPED.id]})<br/>` +
-    `Total login count: <b>${totalLoginCount}</b> (${totalLoginAttempts} attempts)<br/>` +
-    `Total reboot count: <b>${totalRebootCount}</b> (${totalRebootAttempts} attempts)<br/><br/>` +
-    `Current restart attempts: ${rebootAttempts} (Limit: ${allowedRestartAttempts})<br/>` +
-    `Current login attempts: ${loginAttempts} (Limit: ${allowedLoginAttemps})<br/><br/>` +
-    `<button type="submit" onclick="location.href='${serverUrl}/restart'">Restart / Unpause</button><br/><br/>` + 
-    `<button type="submit" onclick="location.href='${serverUrl}/refresh'">Refresh Page</button><br/><br/>` + 
-    `<button type="submit" onclick="location.href='${serverUrl}/pause'">10 Minute Pause</button><br/><br/>` +
-    `<button type="submit" onclick="location.href='${serverUrl}/stop'">Stop Checks</button><br/><br/>` +
-    `Server started at ${start}<br/>Page updated at ${getTimestamp()}`
-  );
+  res.send(`
+    <!DOCTYPE html><html><head><style>${lightTheme ? cssLight : cssDark}</style></head><body>
+    Netgear Rebooter Status: <b>${status}</b> ${statusInfo}<br/><br/>
+    Last IP found: <b>${lastIp}</b> [ ${lastIpTimestamp} ]<br/>
+    Last run state: <b>${lastRunState.val}</b> [ ${lastRunAttemptTimestamp} ]<br/>Last router login: <b>${loginTimestamp}</b><br/>
+    Last router reboot: <b>${rebootTimestamp}</b><br/><br/>
+    Total run count: <b>${statecounts.total}</b> (external: ${statecounts[runState.FOUND_EXTERNAL.id]}, internal: ${statecounts[runState.FOUND_INTERNAL.id]}, unauthenticated: ${statecounts[runState.UNAUTHENTICATED.id]}, skipped: ${statecounts[runState.SKIPPED.id]})<br/>
+    Total login count: <b>${totalLoginCount}</b> (${totalLoginAttempts} attempts)<br/>
+    Total reboot count: <b>${totalRebootCount}</b> (${totalRebootAttempts} attempts)<br/><br/>
+    Current restart attempts: ${rebootAttempts} (Limit: ${allowedRestartAttempts})<br/>
+    Current login attempts: ${loginAttempts} (Limit: ${allowedLoginAttemps})<br/><br/>
+    <button type="submit" onclick="location.href='${serverUrl}/restart'">Restart / Unpause</button><br/><br/><button type="submit" onclick="location.href='${serverUrl}/refresh'">Refresh Page</button><br/><br/>
+    <button type="submit" onclick="location.href='${serverUrl}/pause'">10 Minute Pause</button><br/><br/>
+    <button type="submit" onclick="location.href='${serverUrl}/stop'">Stop Checks</button><br/><br/>
+    Server started at ${start}<br/>Page updated at ${getTimestamp()}
+    </body></html>
+  `);
 });
 
 server.get('/refresh', (req, res) => {
