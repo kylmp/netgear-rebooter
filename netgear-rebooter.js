@@ -13,6 +13,7 @@ const allowedLoginAttemps = parseInt(process.env.ALLOWED_LOGIN_ATTEMPTS);
 const allowedRestartAttempts = parseInt(process.env.ALLOWED_RESTART_ATTEMPTS);
 const ignoredLogLevels = (process.env.IGNORED_LOG_LEVELS || '').toUpperCase().split(',');
 const baseUrl = process.env.BASE_URL || '';
+const uiFavicon = process.env.UI_FAVICON_FILE;
 const serverUrl = (process.env.SERVER_URL || `http://${process.env.SERVER_LOCAL_IP}:${port}`) + baseUrl;
 const logFile = `${process.env.LOG_DIR || ''}netgear-rebooter.log`;
 const start = getTimestamp();
@@ -47,10 +48,11 @@ const cssDark = `body { font-family: arial, sans-serif; color: #cccccc; backgrou
 const cssLight = `body { font-family: arial, sans-serif; }button {  background-color: #dddddd;  border: 1px solid transparent;  border-radius: .65rem;  box-sizing: border-box;  color: #222222;  cursor: pointer;  flex: 0 0 auto;  font-family: arial, sans-serif;  font-size: .9rem;  font-weight: 250;  line-height: 1rem;  padding: .5rem .8rem;  text-align: center;  text-decoration: none #6B7280 solid;  text-decoration-thickness: auto;  transition-duration: .2s;  transition-property: background-color,border-color,color,fill,stroke;  transition-timing-function: cubic-bezier(.4, 0, 0.2, 1);  user-select: none;  -webkit-user-select: none;  touch-action: manipulation;  width: auto;}button:hover {  background-color: #cccccc;}button:focus {  box-shadow: none;  outline: 2px solid transparent;  outline-offset: 2px;}@media (min-width: 768px) {  button {    padding: .5rem 1rem;  }}`;
 
 server.get(`${baseUrl}/`, (req, res) => {
+  const favicon = uiFavicon ? `<link rel="icon" type="image/png" href="${uiFavicon}"/>` : '';
   let statusInfo = status === statuses.PAUSED ? `(Until ${pauseTimestamp})` : `(Since ${statusUpdateTime})`;
   res.set('Content-Type', 'text/html');
   res.send(`
-    <!DOCTYPE html><html><head><style>${lightTheme ? cssLight : cssDark}</style></head><body>
+    <!DOCTYPE html><html><head>${favicon}<style>${lightTheme ? cssLight : cssDark}</style></head><body>
     Netgear Rebooter Status: <b>${status}</b> ${statusInfo}<br/><br/>
     Last IP found: <b>${lastIp}</b> [ ${lastIpTimestamp} ]<br/>
     Last run state: <b>${lastRunState.val}</b> [ ${lastRunAttemptTimestamp} ]<br/>Last router login: <b>${loginTimestamp}</b><br/>
